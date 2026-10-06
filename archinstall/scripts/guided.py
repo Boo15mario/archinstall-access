@@ -9,7 +9,7 @@ from archinstall.lib.bootloader.utils import validate_bootloader_layout
 from archinstall.lib.configuration import confirm_config
 from archinstall.lib.disk.filesystem import FilesystemHandler
 from archinstall.lib.disk.utils import disk_layouts
-from archinstall.lib.distro.distro_handler import DistroHandler
+from archinstall.lib.distro.distro_handler import DistroHandler, ensure_gnome_desktop_profile
 from archinstall.lib.general.general_menu import PostInstallationAction, select_post_installation
 from archinstall.lib.global_menu import GlobalMenu
 from archinstall.lib.installer import Installer, accessibility_tools_in_use, run_custom_user_commands
@@ -220,6 +220,14 @@ def main(arch_config_handler: ArchConfigHandler | None = None) -> None:
 
 	if not arch_config_handler.args.silent:
 		show_menu(arch_config_handler, mirror_list_handler)
+
+	# The distro's GNOME defaults are layered on the stock GNOME desktop
+	# profile: pull it in when requested. This also covers config-file
+	# driven installs that never visit the Distro Setup menu.
+	if (distro_config := arch_config_handler.config.distro_config) and distro_config.gnome_defaults:
+		arch_config_handler.config.profile_config = ensure_gnome_desktop_profile(
+			arch_config_handler.config.profile_config
+		)
 
 	arch_config_handler.config.write_debug()
 	arch_config_handler.config.save()

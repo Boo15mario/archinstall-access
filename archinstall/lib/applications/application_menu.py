@@ -193,7 +193,10 @@ async def select_print_service(preset: PrintServiceConfiguration | None) -> Prin
 
 
 async def select_audio(preset: AudioConfiguration | None = None) -> AudioConfiguration | None:
-	items = [MenuItem(a.value, value=a) for a in Audio]
+	# This distro ships PipeWire as its only audio server; PulseAudio is
+	# intentionally not offered. The Audio enum itself is left intact so
+	# saved configurations referencing it still parse.
+	items = [MenuItem(a.value, value=a) for a in Audio if a != Audio.PULSEAUDIO]
 	group = MenuItemGroup(items)
 
 	if preset:

@@ -8,6 +8,7 @@ from archinstall.lib.bootloader.bootloader_menu import BootloaderMenu
 from archinstall.lib.bootloader.utils import validate_bootloader_layout
 from archinstall.lib.configuration import save_config
 from archinstall.lib.disk.disk_menu import DiskLayoutConfigurationMenu
+from archinstall.lib.distro.distro_handler import ensure_gnome_desktop_profile
 from archinstall.lib.distro.distro_menu import DistroMenu
 from archinstall.lib.general.general_menu import select_hostname, select_ntp, select_timezone
 from archinstall.lib.general.system_menu import select_firmware_optdeps, select_kernel, select_swap
@@ -280,7 +281,15 @@ class GlobalMenu(AbstractMenu[None]):
 		return await ApplicationMenu(preset).show()
 
 	async def _select_distro(self, preset: DistroConfiguration | None) -> DistroConfiguration | None:
-		return await DistroMenu(preset).show()
+		distro_config = await DistroMenu(preset).show()
+
+		if distro_config and distro_config.gnome_defaults:
+			# The distro's GNOME defaults are layered on the stock GNOME
+			# desktop profile: pull it in so the install actually gets GNOME.
+			profile_item: MenuItem = self._item_group.find_by_key('profile_config')
+			profile_item.value = ensure_gnome_desktop_profile(profile_item.value)
+
+		return distro_config
 
 	async def _select_authentication(self, preset: AuthenticationConfiguration | None) -> AuthenticationConfiguration | None:
 		return await AuthenticationMenu(preset).show()

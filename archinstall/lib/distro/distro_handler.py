@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -7,6 +9,7 @@ from archinstall.lib.models.distro import DistroConfiguration
 
 if TYPE_CHECKING:
 	from archinstall.lib.installer import Installer
+	from archinstall.lib.models.profile import ProfileConfiguration
 
 # Chaotic AUR keyring bootstrap (official documented key id and package URLs)
 _CHAOTIC_SIGNING_KEY = '30565152B0F46513'
@@ -29,6 +32,50 @@ _LIVE_DCONF_DEFAULTS = Path('/etc/dconf/db/local.d/00-gnome-custom')
 _LIVE_GTK_SKEL_SETTINGS = Path('/etc/skel/.config/gtk-3.0/settings.ini')
 _LIVE_LIBVIRTD_CONF = Path('/etc/libvirt/libvirtd.conf')
 _LIVE_LIBVIRT_POLKIT_RULE = Path('/etc/polkit-1/rules.d/50-libvirt.rules')
+
+
+def ensure_gnome_desktop_profile(
+	profile_config: 'ProfileConfiguration | None',
+) -> 'ProfileConfiguration | None':
+	"""Pull the stock GNOME desktop profile for the distro's GNOME defaults.
+
+	The distro's GNOME customizations are layered on top of the regular GNOME
+	desktop profile instead of reimplementing it, and the stock profile itself
+	is left untouched so users who don't want the distro customization can
+	still pick plain GNOME from the Profile menu.
+	"""
+	from archinstall.lib.models.profile import ProfileConfiguration
+	from archinstall.lib.profile.profiles_handler import profile_handler
+
+	gnome = profile_handler.get_profile_by_name('GNOME')
+	desktop = profile_handler.get_profile_by_name('Desktop')
+
+	if gnome is None or desktop is None:
+		return profile_config
+
+	if (
+		profile_config
+		and profile_config.profile
+		and profile_config.profile.is_desktop_profile()
+		and profile_config.profile.current_selection_names() == ['GNOME']
+	):
+		return profile_config  # already pulling from the GNOME profile
+
+	# reset other top-level selections to avoid stale state, mirroring what
+	# the profile menu does when a new profile is picked
+	profile_handler.reset_top_level_profiles(exclude=[desktop])
+	desktop.current_selection = [gnome]
+
+	gfx_driver = profile_config.gfx_driver if profile_config else None
+	greeter = profile_config.greeter if profile_config else None
+	if greeter is None:
+		greeter = desktop.default_greeter_type
+
+	return ProfileConfiguration(
+		profile=desktop,
+		gfx_driver=gfx_driver,
+		greeter=greeter,
+	)
 
 
 class DistroHandler:
