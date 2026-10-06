@@ -20,6 +20,7 @@ from archinstall.lib.crypt import decrypt, encrypt
 from archinstall.lib.log import debug, error, logger, warn
 from archinstall.lib.menu.util import get_password
 from archinstall.lib.models.application import ApplicationConfiguration, ZramConfiguration
+from archinstall.lib.models.distro import DistroConfiguration
 from archinstall.lib.models.authentication import AuthenticationConfiguration
 from archinstall.lib.models.bootloader import Bootloader, BootloaderConfiguration
 from archinstall.lib.models.config import SubConfig, SummaryLevel
@@ -81,6 +82,7 @@ class ArchConfigType(StrEnum):
 	NETWORK_CONFIG = auto()
 	BOOTLOADER_CONFIG = auto()
 	APP_CONFIG = auto()
+	DISTRO_CONFIG = auto()
 	AUTH_CONFIG = auto()
 	SWAP = auto()
 	USERS = auto()
@@ -114,6 +116,7 @@ class ArchConfig:
 	network_config: NetworkConfiguration | None = None
 	bootloader_config: BootloaderConfiguration | None = None
 	app_config: ApplicationConfiguration | None = None
+	distro_config: DistroConfiguration | None = None
 	auth_config: AuthenticationConfiguration | None = None
 	swap: ZramConfiguration | None = None
 	hostname: str = 'archlinux'
@@ -204,6 +207,9 @@ class ArchConfig:
 		if self.app_config:
 			cfg[ArchConfigType.APP_CONFIG] = self.app_config
 
+		if self.distro_config:
+			cfg[ArchConfigType.DISTRO_CONFIG] = self.distro_config
+
 		return cfg
 
 	@classmethod
@@ -270,6 +276,9 @@ class ArchConfig:
 
 		if audio_config_args is not None or app_config_args is not None:
 			arch_config.app_config = ApplicationConfiguration.parse_arg(app_config_args, audio_config_args)
+
+		if distro_config_args := args_config.get('distro_config', None):
+			arch_config.distro_config = DistroConfiguration.parse_arg(distro_config_args)
 
 		if auth_config_args := args_config.get('auth_config', None):
 			arch_config.auth_config = AuthenticationConfiguration.parse_arg(auth_config_args)

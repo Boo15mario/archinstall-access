@@ -1,4 +1,5 @@
 import sys
+import time
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
@@ -73,6 +74,54 @@ class BaseScreen(Screen[Result[ValueT]]):
 	async def action_reset_operation(self) -> None:
 		if self._allow_reset:
 			_ = self.dismiss(Result(ResultType.Reset))
+
+
+# Max pause between digits when typing a multi-digit option number (e.g. "12")
+_NUMBER_INPUT_TIMEOUT = 1.5
+
+
+def _handle_number_key(
+	screen: BaseScreen[Any],
+	list_widget: OptionList | SelectionList[Any],
+	event: Key,
+) -> bool:
+	"""Jump the highlight to the option matching the typed number.
+
+	Digits typed in quick succession form multi-digit numbers, so both
+	short and long menus stay reachable by number. Returns True when the
+	key was consumed as a number shortcut.
+	"""
+	if not event.key.isdigit():
+		return False
+
+	# never steal digits typed into the filter box
+	if getattr(screen, '_filter', False):
+		try:
+			if screen.query_one(Input).has_focus:
+				return False
+		except Exception:
+			pass
+
+	now = time.monotonic()
+	if now - screen._number_last_time > _NUMBER_INPUT_TIMEOUT:
+		screen._number_buffer = ''
+
+	screen._number_last_time = now
+	screen._number_buffer += event.key
+
+	option_count = list_widget.option_count
+
+	number = int(screen._number_buffer)
+	if not 1 <= number <= option_count:
+		# out of range: restart the buffer with just the latest digit
+		screen._number_buffer = event.key
+		number = int(event.key)
+		if not 1 <= number <= option_count:
+			screen._number_buffer = ''
+			return False
+
+	list_widget.highlighted = number - 1
+	return True
 
 
 class LoadingScreen(BaseScreen[ValueT]):
@@ -255,6 +304,8 @@ class OptionListScreen(BaseScreen[ValueT]):
 		self._filter = enable_filter
 		self._wrap_preview = wrap_preview
 		self._show_frame = False
+		self._number_buffer = ''
+		self._number_last_time = 0.0
 
 		self._options = self._get_options()
 
@@ -262,6 +313,11 @@ class OptionListScreen(BaseScreen[ValueT]):
 		if self.query_one(OptionList).has_focus:
 			if self._filter:
 				self._handle_search_action()
+
+	@override
+	def on_key(self, event: Key) -> None:
+		if _handle_number_key(self, self.query_one(OptionList), event):
+			event.prevent_default()
 
 	@override
 	def action_cancel_operation(self) -> None:
@@ -285,9 +341,9 @@ class OptionListScreen(BaseScreen[ValueT]):
 	def _get_options(self) -> list[Option]:
 		options = []
 
-		for item in self._group.get_enabled_items():
+		for index, item in enumerate(self._group.get_enabled_items()):
 			disabled = True if item.read_only else False
-			options.append(Option(item.text, id=item.get_id(), disabled=disabled))
+			options.append(Option(f'{index + 1}. {item.text}', id=item.get_id(), disabled=disabled))
 
 		return options
 
@@ -487,6 +543,8 @@ class SelectListScreen(BaseScreen[ValueT]):
 		self._show_frame = False
 		self._filter = enable_filter
 		self._wrap_preview = wrap_preview
+		self._number_buffer = ''
+		self._number_last_time = 0.0
 
 		self._selected_items: list[MenuItem] = self._group.selected_items
 		self._options: list[Selection[MenuItem]] = self._get_selections()
@@ -518,9 +576,9 @@ class SelectListScreen(BaseScreen[ValueT]):
 	def _get_selections(self) -> list[Selection[MenuItem]]:
 		selections = []
 
-		for item in self._group.get_enabled_items():
+		for index, item in enumerate(self._group.get_enabled_items()):
 			is_selected = item in self._selected_items
-			selection = Selection(item.text, item, is_selected)
+			selection = Selection(f'{index + 1}. {item.text}', item, is_selected)
 			selections.append(selection)
 
 		return selections
@@ -568,6 +626,10 @@ class SelectListScreen(BaseScreen[ValueT]):
 
 	def on_key(self, event: Key) -> None:
 		selection_list = self.query_one(SelectionList)
+
+		if _handle_number_key(self, selection_list, event):
+			event.prevent_default()
+			return
 
 		if not selection_list.has_focus or event.key != 'enter':
 			return
