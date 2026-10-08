@@ -55,16 +55,6 @@ class DistroMenu(AbstractSubMenu[DistroConfiguration]):
 				key='chaotic_aur',
 			),
 			MenuItem(
-				text=tr('Custom distro repository'),
-				action=lambda preset: _select_toggle(
-					tr('Enable the custom distro repository?'),
-					preset,
-				),
-				value=self._distro_config.custom_repo,
-				preview_action=self._prev_toggle,
-				key='custom_repo',
-			),
-			MenuItem(
 				text=tr('GNOME desktop defaults'),
 				action=lambda preset: _select_toggle(
 					tr('Apply the distro GNOME desktop defaults?'),
