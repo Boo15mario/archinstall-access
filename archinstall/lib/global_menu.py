@@ -8,6 +8,8 @@ from archinstall.lib.bootloader.bootloader_menu import BootloaderMenu
 from archinstall.lib.bootloader.utils import validate_bootloader_layout
 from archinstall.lib.configuration import save_config
 from archinstall.lib.disk.disk_menu import DiskLayoutConfigurationMenu
+from archinstall.lib.distro.distro_handler import ensure_gnome_desktop_profile
+from archinstall.lib.distro.distro_menu import DistroMenu
 from archinstall.lib.general.general_menu import select_hostname, select_ntp, select_timezone
 from archinstall.lib.general.system_menu import select_firmware_optdeps, select_kernel, select_swap
 from archinstall.lib.hardware import SysInfo
@@ -19,6 +21,7 @@ from archinstall.lib.models.application import ApplicationConfiguration, ZramCon
 from archinstall.lib.models.authentication import AuthenticationConfiguration
 from archinstall.lib.models.bootloader import Bootloader, BootloaderConfiguration
 from archinstall.lib.models.device import DiskLayoutConfiguration, DiskLayoutType, PartitionModification
+from archinstall.lib.models.distro import DistroConfiguration
 from archinstall.lib.models.locale import LocaleConfiguration
 from archinstall.lib.models.mirrors import MirrorConfiguration
 from archinstall.lib.models.network import NetworkConfiguration, NicType
@@ -142,6 +145,12 @@ class GlobalMenu(AbstractMenu[None]):
 				value=[],
 				preview_action=self._prev_applications,
 				key='app_config',
+			),
+			MenuItem(
+				text=tr('Distro Setup'),
+				action=self._select_distro,
+				preview_action=self._prev_distro,
+				key='distro_config',
 			),
 			MenuItem(
 				text=tr('Network configuration'),
@@ -271,6 +280,17 @@ class GlobalMenu(AbstractMenu[None]):
 	async def _select_applications(self, preset: ApplicationConfiguration | None) -> ApplicationConfiguration | None:
 		return await ApplicationMenu(preset).show()
 
+	async def _select_distro(self, preset: DistroConfiguration | None) -> DistroConfiguration | None:
+		distro_config = await DistroMenu(preset).show()
+
+		if distro_config and distro_config.gnome_defaults:
+			# The distro's GNOME defaults are layered on the stock GNOME
+			# desktop profile: pull it in so the install actually gets GNOME.
+			profile_item: MenuItem = self._item_group.find_by_key('profile_config')
+			profile_item.value = ensure_gnome_desktop_profile(profile_item.value)
+
+		return distro_config
+
 	async def _select_authentication(self, preset: AuthenticationConfiguration | None) -> AuthenticationConfiguration | None:
 		return await AuthenticationMenu(preset).show()
 
@@ -368,6 +388,12 @@ class GlobalMenu(AbstractMenu[None]):
 
 			return output
 
+		return None
+
+	def _prev_distro(self, item: MenuItem) -> str | None:
+		if item.value:
+			distro_config: DistroConfiguration = item.value
+			return '\n'.join(distro_config.summary())
 		return None
 
 	def _prev_tz(self, item: MenuItem) -> str | None:

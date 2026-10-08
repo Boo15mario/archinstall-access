@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Callable
 from dataclasses import asdict, is_dataclass
 from typing import TYPE_CHECKING, Any

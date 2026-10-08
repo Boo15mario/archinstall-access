@@ -9,6 +9,7 @@ from archinstall.lib.bootloader.utils import validate_bootloader_layout
 from archinstall.lib.configuration import confirm_config
 from archinstall.lib.disk.filesystem import FilesystemHandler
 from archinstall.lib.disk.utils import disk_layouts
+from archinstall.lib.distro.distro_handler import DistroHandler, ensure_gnome_desktop_profile
 from archinstall.lib.general.general_menu import PostInstallationAction, select_post_installation
 from archinstall.lib.global_menu import GlobalMenu
 from archinstall.lib.installer import Installer, accessibility_tools_in_use, run_custom_user_commands
@@ -133,11 +134,18 @@ def perform_installation(
 		if config.auth_config:
 			if config.auth_config.users:
 				users = config.auth_config.users
+				if config.distro_config and config.distro_config.libvirt:
+					for user in users:
+						if 'libvirt' not in user.groups:
+							user.groups.append('libvirt')
 				installation.create_users(config.auth_config.users)
 				auth_handler.setup_auth(installation, config.auth_config, config.hostname)
 
 		if app_config := config.app_config:
 			application_handler.install_applications(installation, app_config)
+
+		if distro_config := config.distro_config:
+			DistroHandler().install_distro(installation, distro_config)
 
 		if profile_config := config.profile_config:
 			profile_handler.install_profile_config(installation, profile_config)
@@ -212,6 +220,14 @@ def main(arch_config_handler: ArchConfigHandler | None = None) -> None:
 
 	if not arch_config_handler.args.silent:
 		show_menu(arch_config_handler, mirror_list_handler)
+
+	# The distro's GNOME defaults are layered on the stock GNOME desktop
+	# profile: pull it in when requested. This also covers config-file
+	# driven installs that never visit the Distro Setup menu.
+	if (distro_config := arch_config_handler.config.distro_config) and distro_config.gnome_defaults:
+		arch_config_handler.config.profile_config = ensure_gnome_desktop_profile(
+			arch_config_handler.config.profile_config
+		)
 
 	arch_config_handler.config.write_debug()
 	arch_config_handler.config.save()

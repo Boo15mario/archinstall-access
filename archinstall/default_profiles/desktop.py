@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Self, override
 
 from archinstall.default_profiles.desktops.utils import provision_seat_access
