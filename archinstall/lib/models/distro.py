@@ -8,7 +8,6 @@ from archinstall.lib.translationhandler import tr
 class DistroSerialization(TypedDict):
 	libvirt: bool
 	chaotic_aur: bool
-	custom_repo: bool
 	gnome_defaults: bool
 	breeze_dark: bool
 
@@ -17,7 +16,6 @@ class DistroSerialization(TypedDict):
 class DistroConfiguration(SubConfig):
 	libvirt: bool = False
 	chaotic_aur: bool = False
-	custom_repo: bool = False
 	gnome_defaults: bool = False
 	breeze_dark: bool = False
 
@@ -30,7 +28,6 @@ class DistroConfiguration(SubConfig):
 		if args:
 			config.libvirt = args.get('libvirt', False)
 			config.chaotic_aur = args.get('chaotic_aur', False)
-			config.custom_repo = args.get('custom_repo', False)
 			config.gnome_defaults = args.get('gnome_defaults', False)
 			config.breeze_dark = args.get('breeze_dark', False)
 
@@ -41,7 +38,6 @@ class DistroConfiguration(SubConfig):
 		return {
 			'libvirt': self.libvirt,
 			'chaotic_aur': self.chaotic_aur,
-			'custom_repo': self.custom_repo,
 			'gnome_defaults': self.gnome_defaults,
 			'breeze_dark': self.breeze_dark,
 		}
@@ -54,7 +50,6 @@ class DistroConfiguration(SubConfig):
 		return [
 			f'{tr("Virtualization (libvirt)")}: {_state(self.libvirt)}',
 			f'{tr("Chaotic AUR repository")}: {_state(self.chaotic_aur)}',
-			f'{tr("Custom distro repository")}: {_state(self.custom_repo)}',
 			f'{tr("GNOME desktop defaults")}: {_state(self.gnome_defaults)}',
 			f'{tr("Breeze Dark theming")}: {_state(self.breeze_dark)}',
 		]
