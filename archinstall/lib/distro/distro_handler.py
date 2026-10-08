@@ -22,11 +22,6 @@ _CHAOTIC_AUR_BLOCK = """\
 Include = /etc/pacman.d/chaotic-mirrorlist
 """
 
-# Personal distro repository. Set these once the repo exists
-# (see the distro repo plan); left unset the entry is skipped.
-_CUSTOM_REPO_NAME = 'custom'
-_CUSTOM_REPO_URL: str | None = None  # e.g. 'https://repo.example.com/$arch'
-
 # Desktop defaults shipped on the install ISO (live system paths)
 _LIVE_DCONF_DEFAULTS = Path('/etc/dconf/db/local.d/00-gnome-custom')
 _LIVE_GTK_SKEL_SETTINGS = Path('/etc/skel/.config/gtk-3.0/settings.ini')
@@ -83,7 +78,7 @@ class DistroHandler:
 		if distro_config.libvirt:
 			self._setup_libvirt(installation)
 
-		if distro_config.chaotic_aur or distro_config.custom_repo:
+		if distro_config.chaotic_aur:
 			self._setup_repositories(installation, distro_config)
 
 		if distro_config.gnome_defaults or distro_config.breeze_dark:
@@ -95,7 +90,7 @@ class DistroHandler:
 		installation.add_additional_packages(
 			[
 				'libvirt',
-				'qemu-desktop',
+				'qemu-full',
 				'virt-manager',
 				'virt-viewer',
 				'dnsmasq',
@@ -125,14 +120,6 @@ class DistroHandler:
 				info('Enabled Chaotic AUR repository on target')
 			else:
 				warn('Skipping Chaotic AUR: keyring bootstrap failed')
-
-		if distro_config.custom_repo:
-			if _CUSTOM_REPO_URL:
-				with pacman_conf.open('a') as fp:
-					fp.write(f'\n[{_CUSTOM_REPO_NAME}]\nSigLevel = Required\nServer = {_CUSTOM_REPO_URL}\n')
-				info(f'Enabled custom repository "{_CUSTOM_REPO_NAME}" on target')
-			else:
-				warn('Skipping custom repository: no repo URL configured yet')
 
 	def _bootstrap_chaotic_keyring(self, installation: Installer) -> bool:
 		info('Bootstrapping Chaotic AUR keyring on target')
